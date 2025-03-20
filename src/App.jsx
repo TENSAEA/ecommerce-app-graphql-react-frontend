@@ -130,7 +130,7 @@ function App() {
           &copy; {new Date().getFullYear()} Ecommerce App. All rights reserved.
         </p>
         <Routes>
-          <Route path="/" element={<ProductList jwt={jwt} />} />
+          <Route path="/" element={ jwt ? (<ProductList jwt={jwt} />): (<div></div>)} /> 
           <Route
             path="/ProductList"
             element={
