@@ -3,7 +3,7 @@ import { setContext } from '@apollo/client/link/context';
 import createUploadLink from "apollo-upload-client/createUploadLink.mjs";
 
 const httpLink = createUploadLink({  // Use createUploadLink
-  uri: 'https://ecommercetensae.infinityfreeapp.com/backend/graphql/graphql.php',
+  uri: '/api/graphql',
 });
 
 const authLink = setContext((operation, context) => {

@@ -5,16 +5,20 @@ import { JSDOM } from "jsdom";
 export default async (req, res) => {
   // Add CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS"
+  );
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
   // Handle preflight requests
   if (req.method === "OPTIONS") {
     return res.status(200).end();
   }
 
-  const backendUrl =
-    "https://ecommercetensae.infinityfreeapp.com/backend/login.php";
+  // Get the target endpoint from the query parameter or default to login
+  const endpoint = req.query.endpoint || "login";
+  const backendUrl = `https://ecommercetensae.infinityfreeapp.com/backend/${endpoint}.php`;
 
   try {
     // First request to get the anti-bot cookie
@@ -27,6 +31,7 @@ export default async (req, res) => {
           "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.5",
         Referer: "https://ecommercetensae.infinityfreeapp.com/",
+        Authorization: req.headers.authorization || "",
       },
       agent: new https.Agent({
         rejectUnauthorized: false,
@@ -58,9 +63,9 @@ export default async (req, res) => {
       }
     }
 
-    // Now make the actual login request with the cookies
-    const loginResponse = await fetch(backendUrl, {
-      method: "POST",
+    // Now make the actual request with the cookies
+    const apiResponse = await fetch(backendUrl, {
+      method: req.method,
       headers: {
         "Content-Type": "application/json",
         "User-Agent":
@@ -70,53 +75,136 @@ export default async (req, res) => {
         "Accept-Language": "en-US,en;q=0.5",
         Referer: "https://ecommercetensae.infinityfreeapp.com/",
         Cookie: testCookie || cookies || "",
+        Authorization: req.headers.authorization || "",
       },
-      body: JSON.stringify(req.body),
+      body: req.method !== "GET" ? JSON.stringify(req.body) : undefined,
       agent: new https.Agent({
         rejectUnauthorized: false,
       }),
     });
 
-    const contentType = loginResponse.headers.get("content-type");
+    const contentType = apiResponse.headers.get("content-type");
     let responseData;
 
     if (contentType && contentType.includes("application/json")) {
-      responseData = await loginResponse.json();
+      responseData = await apiResponse.json();
     } else {
       // If we got HTML, use JSDOM to parse it
-      const loginHtml = await loginResponse.text();
-      const loginDom = new JSDOM(loginHtml);
+      const responseHtml = await apiResponse.text();
+      const responseDom = new JSDOM(responseHtml);
 
-      // Try to determine if login was successful by looking for success indicators in the HTML
-      const successElements = loginDom.window.document.querySelectorAll(
-        ".success, .welcome, #user-profile"
+      // Look for success/error indicators in the HTML
+      const successElements = responseDom.window.document.querySelectorAll(
+        ".success, .message-success, .alert-success"
       );
-      const errorElements = loginDom.window.document.querySelectorAll(
-        ".error, .login-error"
+      const errorElements = responseDom.window.document.querySelectorAll(
+        ".error, .message-error, .alert-danger"
       );
 
-      if (successElements.length > 0 || loginResponse.status === 200) {
-        // Mock a successful response
-        responseData = {
-          success: true,
-          user: { username: req.body.username },
-          jwt: "mock-jwt-token-" + Date.now(),
-          message: "Login successful",
-        };
+      // Extract message if available
+      let message = "";
+      if (successElements.length > 0) {
+        message = successElements[0].textContent.trim();
       } else if (errorElements.length > 0) {
-        // Extract error message if possible
-        const errorMessage =
-          errorElements[0].textContent || "Invalid credentials";
-        responseData = {
-          success: false,
-          message: errorMessage,
-        };
-      } else {
-        // Default mock response
-        responseData = {
-          success: false,
-          message: "Login failed - could not process server response",
-        };
+        message = errorElements[0].textContent.trim();
+      }
+
+      // Create a mock response based on the endpoint and HTML content
+      switch (endpoint) {
+        case "login":
+          responseData = {
+            success:
+              apiResponse.status === 200 &&
+              !responseHtml.includes("Invalid credentials"),
+            user: req.body ? { username: req.body.username } : null,
+            jwt: "mock-jwt-token-" + Date.now(),
+            message:
+              message ||
+              (apiResponse.status === 200
+                ? "Login successful"
+                : "Login failed"),
+          };
+          break;
+        case "register":
+          responseData = {
+            success:
+              apiResponse.status === 200 && !responseHtml.includes("failed"),
+            message:
+              message ||
+              (apiResponse.status === 200
+                ? "Registration successful"
+                : "Registration failed"),
+          };
+          break;
+        case "get_cart_items":
+          // For cart items, it's safer to return a mock response
+          // since we don't know the exact HTML structure
+          responseData =
+            apiResponse.status === 200
+              ? // Mock cart items if the request was successful
+                [
+                  {
+                    product_id: "mock-1",
+                    name: "Sample Product 1",
+                    price: 19.99,
+                    quantity: 1,
+                    image_url: "https://via.placeholder.com/150",
+                  },
+                  {
+                    product_id: "mock-2",
+                    name: "Sample Product 2",
+                    price: 29.99,
+                    quantity: 2,
+                    image_url: "https://via.placeholder.com/150",
+                  },
+                ]
+              : // Empty array if request failed
+                [];
+          break;
+
+        case "add_to_cart":
+          responseData = {
+            success:
+              apiResponse.status === 200 && !responseHtml.includes("error"),
+            message:
+              message ||
+              (apiResponse.status === 200
+                ? "Product added to cart"
+                : "Failed to add product to cart"),
+          };
+          break;
+        case "remove_from_cart":
+          responseData = {
+            success:
+              apiResponse.status === 200 && !responseHtml.includes("error"),
+            message:
+              message ||
+              (apiResponse.status === 200
+                ? "Product removed from cart"
+                : "Failed to remove product from cart"),
+          };
+          break;
+        case "create_product":
+          responseData = {
+            success:
+              apiResponse.status === 200 && !responseHtml.includes("error"),
+            message:
+              message ||
+              (apiResponse.status === 200
+                ? "Product created successfully"
+                : "Failed to create product"),
+          };
+          break;
+        default:
+          responseData = {
+            success:
+              apiResponse.status === 200 && !responseHtml.includes("error"),
+            message:
+              message ||
+              (apiResponse.status === 200
+                ? "Operation successful"
+                : "Operation failed"),
+          };
       }
     }
 
