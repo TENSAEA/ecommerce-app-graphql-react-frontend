@@ -1,5 +1,5 @@
 import fetch from "node-fetch";
-
+import https from "https";
 export default async (req, res) => {
   const backendUrl =
     "https://ecommercetensae.infinityfreeapp.com/backend/login.php";
@@ -10,16 +10,16 @@ export default async (req, res) => {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   try {
-    // Clone the request body
-    const body = req.method === "POST" ? JSON.stringify(req.body) : null;
-
     const response = await fetch(backendUrl, {
       method: req.method,
       headers: {
         "Content-Type": "application/json",
-        Accept: "application/json",
       },
-      body: body,
+      body: req.method === "POST" ? JSON.stringify(req.body) : null,
+      agent: new https.Agent({
+        // Bypass SSL verification
+        rejectUnauthorized: false,
+      }),
     });
 
     // Handle non-JSON responses
@@ -37,7 +37,6 @@ export default async (req, res) => {
     res.status(500).json({
       error: "Proxy failed",
       message: error.message,
-      stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
     });
   }
 };
