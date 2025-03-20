@@ -20,7 +20,7 @@ function Cart() {
                     return; // Stop the fetch if no token
                 }
 
-                const response = await fetch('http://ecommercetensae.infinityfreeapp.com/backend/get_cart_items.php', {
+                const response = await fetch('https://ecommercetensae.infinityfreeapp.com/backend/get_cart_items.php', {
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${storedJwt}`

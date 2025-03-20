@@ -25,7 +25,7 @@ function ProductList({ jwt }) {
   const handleAddToCart = async (product) => {
     try {
       const response = await fetch(
-        "http://ecommercetensae.infinityfreeapp.com/backend/add_to_cart.php",
+        "https://ecommercetensae.infinityfreeapp.com/backend/add_to_cart.php",
         {
           method: "POST",
           headers: {

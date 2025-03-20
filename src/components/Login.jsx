@@ -19,7 +19,7 @@ function Login({ setUser, setJwt }) {
         // Simulate a delay to show the spinner
         setTimeout(async () => {
             try {
-                const response = await fetch('http://ecommercetensae.infinityfreeapp.com/backend/login.php', {
+                const response = await fetch('https://ecommercetensae.infinityfreeapp.com/backend/login.php', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
