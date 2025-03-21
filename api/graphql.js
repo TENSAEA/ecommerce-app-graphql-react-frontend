@@ -4,7 +4,7 @@ import https from "https";
 export default async (req, res) => {
   // Add CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader(
     "Access-Control-Allow-Headers",
     "Content-Type, Accept, Authorization"
@@ -37,10 +37,27 @@ export default async (req, res) => {
       });
     }
 
-    // Make a copy of the request body to avoid the "body used already" error
-    const requestBody = JSON.parse(JSON.stringify(req.body));
+    // Make an initial request to get cookies
+    const initialResponse = await fetch(backendUrl, {
+      method: "GET",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        Accept: "application/json",
+        Authorization: authHeader,
+      },
+      agent: new https.Agent({
+        rejectUnauthorized: false,
+      }),
+    });
 
-    // Forward the GraphQL request to the backend
+    // Extract cookies from the initial response
+    const cookies = initialResponse.headers.get("set-cookie");
+
+    // Make a copy of the request body to avoid the "body used already" error
+    const requestBody = JSON.stringify(req.body);
+
+    // Forward the GraphQL request to the backend with cookies
     const apiResponse = await fetch(backendUrl, {
       method: "POST",
       headers: {
@@ -49,46 +66,29 @@ export default async (req, res) => {
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         Accept: "application/json",
         Authorization: authHeader,
+        Cookie: cookies, // Include the cookies in the request
         Referer: "https://ecommercetensae.infinityfreeapp.com/",
       },
-      body: JSON.stringify(requestBody),
+      body: requestBody,
       agent: new https.Agent({
         rejectUnauthorized: false,
       }),
     });
 
-    // Get the response as text first
-    const responseText = await apiResponse.text();
+    // Get the response as JSON
+    const responseData = await apiResponse.json();
 
-    // Try to parse as JSON
-    let responseData;
-    try {
-      responseData = JSON.parse(responseText);
-    } catch (error) {
-      console.error("Failed to parse response as JSON:", responseText);
-      return res.status(500).json({
-        errors: [
-          {
-            message: "Invalid JSON response from GraphQL server",
-            extensions: {
-              code: "INTERNAL_SERVER_ERROR",
-              responseText: responseText.substring(0, 1000), // Limit the size for security
-            },
-          },
-        ],
-      });
+    // Check if the response contains GraphQL errors
+    if (responseData.errors) {
+      console.error("GraphQL errors:", JSON.stringify(responseData.errors));
     }
 
     // Return the GraphQL response
-    return res.status(200).json(responseData);
+    return res.status(apiResponse.status).json(responseData);
   } catch (error) {
     console.error("GraphQL proxy error:", error);
     return res.status(500).json({
-      errors: [
-        {
-          message: "GraphQL proxy failed: " + error.message,
-        },
-      ],
+      errors: [{ message: "GraphQL proxy failed: " + error.message }],
     });
   }
 };
