@@ -75,12 +75,27 @@ export default async (req, res) => {
       }),
     });
 
-    // Get the response as JSON
-    const responseData = await apiResponse.json();
+    // Get the response as text to log it
+    const responseText = await apiResponse.text();
+    console.log("Raw response from backend:", responseText); // Log the raw response
 
-    // Check if the response contains GraphQL errors
-    if (responseData.errors) {
-      console.error("GraphQL errors:", JSON.stringify(responseData.errors));
+    // Try to parse the response as JSON
+    let responseData;
+    try {
+      responseData = JSON.parse(responseText);
+    } catch (error) {
+      console.error("Failed to parse response as JSON:", responseText);
+      return res.status(500).json({
+        errors: [
+          {
+            message: "Invalid JSON response from GraphQL server",
+            extensions: {
+              code: "INTERNAL_SERVER_ERROR",
+              responseText: responseText.substring(0, 1000), // Limit the size for security
+            },
+          },
+        ],
+      });
     }
 
     // Return the GraphQL response
