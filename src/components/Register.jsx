@@ -19,7 +19,7 @@ function Register() {
     // Simulate a delay to show the spinner
     setTimeout(async () => {
       try {
-        const response = await fetch('https://ecommercetensae.infinityfreeapp.com/backend/register.php', {
+        const response = await fetch('/api/proxy', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
