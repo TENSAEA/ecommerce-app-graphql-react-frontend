@@ -1,10 +1,9 @@
-import { ApolloClient, InMemoryCache, from } from '@apollo/client';
-import { onError } from '@apollo/client/link/error';
+import { ApolloClient, InMemoryCache} from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import createUploadLink from "apollo-upload-client/createUploadLink.mjs";
 
-const httpLink = createUploadLink({
-  uri: '/api/graphql',
+const httpLink = createUploadLink({  // Use createUploadLink
+  uri:'https://ecommercetensae.infinityfreeapp.com/backend/graphql.php',
 });
 
 const authLink = setContext((operation, context) => {
@@ -22,33 +21,9 @@ const authLink = setContext((operation, context) => {
   };
 });
 
-// Add error handling
-const errorLink = onError(({ graphQLErrors, networkError }) => {
-  if (graphQLErrors) {
-    graphQLErrors.forEach(({ message, locations, path }) => {
-      console.error(
-        `[GraphQL error]: Message: ${message}, Location: ${locations}, Path: ${path}`
-      );
-    });
-  }
-  if (networkError) {
-    console.error(`[Network error]: ${networkError}`);
-  }
-});
-
 const client = new ApolloClient({
-  link: from([errorLink, authLink, httpLink]),
-  cache: new InMemoryCache(),
-  defaultOptions: {
-    watchQuery: {
-      fetchPolicy: 'network-only',
-      nextFetchPolicy: 'network-only',
-    },
-    query: {
-      fetchPolicy: 'network-only',
-      nextFetchPolicy: 'network-only',
-    },
-  }
+  link: authLink.concat(httpLink),
+  cache: new InMemoryCache()
 });
 
 export default client;
