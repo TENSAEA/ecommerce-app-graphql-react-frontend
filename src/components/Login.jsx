@@ -15,7 +15,7 @@ function Login({ setUser, setJwt }) {
         setLoading(true);
 
         try {
-            const response = await fetch('https://ecommercetensae.infinityfreeapp.com/backend/login.php', {
+            const response = await fetch('/api/proxy', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
