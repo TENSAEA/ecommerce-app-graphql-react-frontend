@@ -11,7 +11,7 @@
 <details open>
 <summary><h3>📄 Overview</h3></summary>
 <p align="center">
-  This is a simple Ecommerce App built using PHP and React.
+Ecommerce App built using PHP and React.
 </p>
 </details>
 
